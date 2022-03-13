@@ -1,6 +1,5 @@
 package com.gig.security.controller;
 
-import com.gig.security.entity.ERole;
 import com.gig.security.entity.Role;
 import com.gig.security.entity.User;
 import com.gig.security.model.request.LoginRequest;
@@ -13,7 +12,6 @@ import com.gig.security.service.UserDetailsImpl;
 import com.gig.security.utils.jwt.JwtUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -96,26 +94,26 @@ public class UserAuthenticationController {
 		Set<Role> roles = new HashSet<>();
 
 		if (strRoles == null) {
-			Role userRole = roleRepository.findByName(ERole.ROLE_USER)
+			Role userRole = roleRepository.findByName("ROLE_USER")
 					.orElseThrow(() -> new RuntimeException("Error: Role is not found."));
 			roles.add(userRole);
 		} else {
 			strRoles.forEach(role -> {
 				switch (role) {
 					case "admin":
-						Role adminRole = roleRepository.findByName(ERole.ROLE_ADMIN)
+						Role adminRole = roleRepository.findByName("ROLE_ADMIN")
 								.orElseThrow(() -> new RuntimeException("Error: Role is not found."));
 						roles.add(adminRole);
 
 						break;
 					case "mod":
-						Role modRole = roleRepository.findByName(ERole.ROLE_MODERATOR)
+						Role modRole = roleRepository.findByName("MODERATOR")
 								.orElseThrow(() -> new RuntimeException("Error: Role is not found."));
 						roles.add(modRole);
 
 						break;
 					default:
-						Role userRole = roleRepository.findByName(ERole.ROLE_USER)
+						Role userRole = roleRepository.findByName("ROLE_USER")
 								.orElseThrow(() -> new RuntimeException("Error: Role is not found."));
 						roles.add(userRole);
 				}
