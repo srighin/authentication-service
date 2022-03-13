@@ -1,32 +1,21 @@
 package com.gig.security.entity;
 
-import com.gig.security.entity.User;
 import lombok.*;
-import org.springframework.security.core.GrantedAuthority;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-import javax.persistence.*;
-import java.util.Set;
 
-@Entity
+@Document(collection = "roles")
 @Getter
 @Setter
-@Data
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class Role implements GrantedAuthority {
+public class Role {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    private String name;
+    private ERole name;
 
-    @ManyToMany(mappedBy = "roles")
-    private Set<User> users;
 
-    @Override
-    public String getAuthority() {
-        return name;
-    }
 }

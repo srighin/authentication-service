@@ -1,61 +1,131 @@
 package com.gig.security.controller;
 
+import com.gig.security.entity.ERole;
 import com.gig.security.entity.Role;
 import com.gig.security.entity.User;
-import com.gig.security.exception.BadRequestException;
-import com.gig.security.exception.EmailAlreadyExistsException;
-import com.gig.security.exception.UsernameAlreadyExistsException;
-import com.gig.security.model.SignUpRequest;
-import com.gig.security.service.UserService;
+import com.gig.security.model.request.LoginRequest;
+import com.gig.security.model.request.SignUpRequest;
+import com.gig.security.model.response.JwtResponse;
+import com.gig.security.model.response.MessageResponse;
+import com.gig.security.repository.RoleRepository;
+import com.gig.security.repository.UserRepository;
+import com.gig.security.service.UserDetailsImpl;
+import com.gig.security.utils.jwt.JwtUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
-import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @Slf4j
+@RequestMapping("/api/auth")
 public class UserAuthenticationController {
-	
-	@GetMapping("/v1/authenticate")
-	public String verifyAuthentication() {
-		return "You are successfully Authenticated!!";
-	}
 
 	@Autowired
-	private UserService userService;
-
-	@PostMapping(value = "/v1/signup", produces = MediaType.APPLICATION_JSON_VALUE)
-	public String createUser(@Valid @RequestBody SignUpRequest payload) {
-		log.info("creating user {}", payload.getUsername());
-
-		User user = User
-				.builder()
-				.firstName(payload.getFirstName())
-				.firstName(payload.getLastName())
-				.username(payload.getUsername())
-				.email(payload.getEmail())
-				.password(payload.getPassword())
-				.mfa(false)
-				.roles(Collections.singleton(Role.builder().id(1l).name("USER").build()))
-				.build();
+	AuthenticationManager authenticationManager;
 
 
-		User saved;
-		try {
-			saved = userService.registerUser(user);
-		} catch (UsernameAlreadyExistsException | EmailAlreadyExistsException e) {
-			throw new BadRequestException(e.getMessage());
+	@Autowired
+	UserRepository userRepository;
+
+	@Autowired
+	RoleRepository roleRepository;
+
+	@Autowired
+	PasswordEncoder encoder;
+
+	@Autowired
+	JwtUtils jwtUtils;
+
+	@PostMapping("/signin")
+	public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+
+		Authentication authentication = authenticationManager.authenticate(
+				new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+		String jwt = jwtUtils.generateJwtToken(authentication);
+
+		UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+		List<String> roles = userDetails.getAuthorities().stream()
+				.map(item -> item.getAuthority())
+				.collect(Collectors.toList());
+
+		return ResponseEntity.ok(new JwtResponse(jwt,
+				userDetails.getId(),
+				userDetails.getUsername(),
+				userDetails.getEmail(),
+				roles));
+	}
+
+	@PostMapping("/signup")
+	public ResponseEntity<?>  createUser(@Valid @RequestBody SignUpRequest signUpRequest) {
+		if (userRepository.existsByUsername(signUpRequest.getUsername())) {
+			return ResponseEntity
+					.badRequest()
+					.body(new MessageResponse("Error: Username is already taken!"));
 		}
-		if(saved != null){
-			return "User is created Successfully";
+
+		if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+			return ResponseEntity
+					.badRequest()
+					.body(new MessageResponse("Error: Email is already in use!"));
 		}
-		throw new RuntimeException("Issue creating users");
+
+		// Create new user's account
+		User user = new User(signUpRequest.getUsername(),
+				signUpRequest.getEmail(),
+				encoder.encode(signUpRequest.getPassword()));
+
+		Set<String> strRoles = signUpRequest.getRoles();
+		Set<Role> roles = new HashSet<>();
+
+		if (strRoles == null) {
+			Role userRole = roleRepository.findByName(ERole.ROLE_USER)
+					.orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+			roles.add(userRole);
+		} else {
+			strRoles.forEach(role -> {
+				switch (role) {
+					case "admin":
+						Role adminRole = roleRepository.findByName(ERole.ROLE_ADMIN)
+								.orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+						roles.add(adminRole);
+
+						break;
+					case "mod":
+						Role modRole = roleRepository.findByName(ERole.ROLE_MODERATOR)
+								.orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+						roles.add(modRole);
+
+						break;
+					default:
+						Role userRole = roleRepository.findByName(ERole.ROLE_USER)
+								.orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+						roles.add(userRole);
+				}
+			});
+		}
+
+		user.setRoles(roles);
+		userRepository.save(user);
+
+		return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
 
 	}
 

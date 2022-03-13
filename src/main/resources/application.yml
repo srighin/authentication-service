@@ -1,8 +1,12 @@
 spring:
-    datasource:
-        driver-class-name: com.mysql.cj.jdbc.Driver
-        password: Password
-        url: jdbc:mysql://127.0.0.1:3306/GIG_ECONOMY
-        username: root
+    data:
+        mongodb:
+            uri: mongodb://localhost:27017/auth-service
 server:
     port: 8080
+
+
+auth-service:
+    app:
+        jwtSecret: SecretKey
+        jwtExpirationMs: 86400000

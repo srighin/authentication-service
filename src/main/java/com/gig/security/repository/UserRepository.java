@@ -1,12 +1,15 @@
 package com.gig.security.repository;
 
 import com.gig.security.entity.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
-@Repository
-public interface UserRepository extends JpaRepository<User, Long> {
-    User findByUsername(String username);
-    boolean existsByUsername(String userName);
-    boolean existsByEmail(String emailId);
+import java.util.Optional;
+
+
+public interface UserRepository extends MongoRepository<User, String> {
+    Optional<User> findByUsername(String username);
+
+    Boolean existsByUsername(String username);
+
+    Boolean existsByEmail(String email);
 }
