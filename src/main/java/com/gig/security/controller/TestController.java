@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TestController {
 	@GetMapping("/all")
 	public String allAccess() {
-		return "Public Content is updated again...";
+		return "Public Content is updated again 2...";
 	}
 	
 	@GetMapping("/user")
